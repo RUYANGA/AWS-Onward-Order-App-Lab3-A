@@ -1,0 +1,56 @@
+# Re-release a previous, known-good image without rebuilding it.
+# Use when a bad release has already finished (during a release, use
+# "Stop and roll back" in CodeDeploy or let the alarms do it automatically).
+name: Roll back to a previous release
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Full git SHA of the good release (see the ECR repository or git log)
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'onward-prod-order-app' }}
+  TASK_FAMILY: ${{ vars.TASK_FAMILY || 'onward-prod-order-app' }}
+  CONTAINER_NAME: order-app
+  DEPLOY_BUCKET: ${{ vars.DEPLOY_BUCKET }}         # empty -> onward-prod-deploy-bundles-<account>-<region>
+  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-session-name: gha-rollback-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Upload deployment bundle
+        run: |
+          ACCOUNT=$(echo "$AWS_ROLE_ARN" | cut -d: -f5)
+          DEPLOY_BUCKET="${DEPLOY_BUCKET:-onward-prod-deploy-bundles-${ACCOUNT}-${AWS_REGION}}"
+          ./scripts/build-deploy-bundle.sh build
+          aws s3 cp build/deploy-bundle.zip "s3://$DEPLOY_BUCKET/deploy/deploy-bundle.zip"
+      - name: Point "latest" at the good image (starts the release)
+        env:
+          TAG: ${{ inputs.image_tag }}
+        run: |
+          read -r MANIFEST_TYPE < <(aws ecr batch-get-image --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$TAG" --query 'images[0].imageManifestMediaType' --output text)
+          MANIFEST=$(aws ecr batch-get-image --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$TAG" --query 'images[0].imageManifest' --output text)
+          [ "$MANIFEST" != "None" ] || { echo "No image tagged $TAG"; exit 1; }
+          aws ecr put-image --repository-name "$ECR_REPOSITORY" --image-tag latest \
+            --image-manifest "$MANIFEST" --image-manifest-media-type "$MANIFEST_TYPE"
+          echo "### Rolled back to ${TAG::7}" >> "$GITHUB_STEP_SUMMARY"

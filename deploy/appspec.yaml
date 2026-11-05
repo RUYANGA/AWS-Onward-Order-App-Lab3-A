@@ -1,0 +1,11 @@
+# Tells CodeDeploy which container behind the load balancer gets the new version.
+# <TASK_DEFINITION> is filled in by CodePipeline with the newly registered revision.
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: <TASK_DEFINITION>
+        LoadBalancerInfo:
+          ContainerName: "order-app"
+          ContainerPort: 8000
