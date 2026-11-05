@@ -1,0 +1,40 @@
+# Keep the build context small: only what the image needs is sent to Docker.
+
+# Environments & secrets
+.venv
+venv
+.env
+.env.*
+!.env.example
+
+# VCS & tooling
+.git
+.gitignore
+.github
+.vscode
+.idea
+.pre-commit-config.yaml
+.flake8
+pyrightconfig.json
+
+# Python caches
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Build output
+staticfiles
+build
+
+# Release tooling, not needed inside the image
+deploy
+scripts
+
+# Docker / docs
+Dockerfile
+docker-compose*.yml
+.dockerignore
+*.md
