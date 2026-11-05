@@ -10,7 +10,7 @@
 # Build:  docker build --build-arg APP_VERSION=$(git rev-parse --short HEAD) -t onward-order-app .
 # Run:    docker run -p 8000:8000 --read-only --tmpfs /tmp onward-order-app
 #
-# ECS runs the container with a read-only root filesystem; only /tmp is writable.
+# ECS runs the container with a read-only root filesystem; scratch files go to /dev/shm.
 
 ARG PYTHON_VERSION=3.12
 
@@ -72,7 +72,13 @@ ENV APP_VERSION=${APP_VERSION}
 
 EXPOSE 8000
 
-# PORT comes from the ECS task definition; /tmp is the only writable path.
-# The gunicorn control socket is off: it would try to write outside /tmp.
+# Writable scratch space. The root filesystem is read-only and on Fargate the /tmp
+# volume is owned by root, so the non-root user writes to /dev/shm (an in-memory
+# tmpfs every container has, writable by all users): gunicorn's worker heartbeat
+# files and anything Python's tempfile creates.
+ENV TMPDIR=/dev/shm
+
+# PORT comes from the ECS task definition. The gunicorn control socket is off: it
+# would try to write to the read-only filesystem.
 # Tune at runtime with GUNICORN_CMD_ARGS, e.g. "--workers 4 --timeout 60".
-CMD ["sh", "-c", "exec gunicorn config.wsgi:application --chdir src --bind 0.0.0.0:${PORT} --workers 2 --threads 4 --worker-tmp-dir /tmp --no-control-socket --access-logfile -"]
+CMD ["sh", "-c", "exec gunicorn config.wsgi:application --chdir src --bind 0.0.0.0:${PORT} --workers 2 --threads 4 --worker-tmp-dir /dev/shm --no-control-socket --access-logfile -"]
