@@ -1,0 +1,27 @@
+# Runs the production image locally the way ECS runs it: production settings,
+# read-only root filesystem, only /tmp writable.
+#
+#   docker compose up --build
+#   open http://localhost:3000
+services:
+  web:
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    image: onward-order-app:local
+    ports:
+      # host port : container port. Change only the left side (WEB_PORT in .env);
+      # gunicorn always listens on 8000 inside the container, as on ECS.
+      - "${WEB_PORT:-3000}:8000"
+    environment:
+      APP_ENV: local
+      STUDENT_NAME: ${STUDENT_NAME:-REPLACE WITH YOUR FULL NAME}
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
