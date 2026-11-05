@@ -52,7 +52,8 @@ jobs:
 
       - name: Smoke test the image
         run: |
-          docker run -d --name candidate -p 8000:8000 --read-only --tmpfs /tmp app:candidate
+          # /tmp is root-owned and not writable, as on Fargate.
+          docker run -d --name candidate -p 8000:8000 --read-only --tmpfs /tmp:mode=0755,uid=0,gid=0 app:candidate
           for i in $(seq 1 20); do curl -fsS localhost:8000/health && break; sleep 1; done
           curl -fsS localhost:8000/ | grep -q "Onward Logistics"
           test "$(docker exec candidate id -u)" = "10001"
