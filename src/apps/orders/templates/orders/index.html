@@ -1,0 +1,221 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Order desk · Onward Logistics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+  <link rel="stylesheet" href="{% static 'orders/style.css' %}">
+  <script src="{% static 'orders/app.js' %}" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#book">Skip to booking form</a>
+
+  <header class="appbar">
+    <div class="appbar__inner">
+      <a class="brand" href="{% url 'orders:home' %}" aria-label="Onward Logistics, order desk home">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M8 11.5 16 7l8 4.5v9L16 25l-8-4.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m8 11.5 8 4.5 8-4.5M16 16v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span class="brand__name">Onward Logistics</span>
+        <span class="brand__product">Order desk</span>
+      </a>
+      <div class="appbar__meta">
+        <span class="env-badge" data-env="{{ env }}">{{ env }}</span>
+        <span class="chip chip--mono" title="Release (git SHA)">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M1 8h4.5M10.5 8H15" stroke="currentColor" stroke-width="1.5"/></svg>
+          {{ version }}
+        </span>
+        <span class="served" title="The ECS task and Availability Zone that answered this request">
+          <span class="pulse" aria-hidden="true"></span>
+          Served by <strong class="mono">{{ runtime.task }}</strong> in <strong>{{ runtime.zone }}</strong>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page__head">
+      <div>
+        <h1>Book a delivery</h1>
+        <p class="lede">Price a parcel, book it in seconds and track the latest orders handled by this task.</p>
+      </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert--error" role="alert">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 5.5v5.5M10 13.5v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div><strong>We couldn't book that delivery.</strong> <span>{{ error }}</span></div>
+    </div>
+    {% endif %}
+    {% if request.GET.placed %}
+    <div class="alert alert--success" role="status">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m6.5 10.2 2.3 2.3 4.7-4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><strong>Booked.</strong> <span>Order {{ request.GET.placed }} booked.</span></div>
+    </div>
+    {% endif %}
+
+    <div class="layout">
+      <section class="card" id="book" aria-labelledby="book-title">
+        <header class="card__head">
+          <h2 id="book-title">New shipment</h2>
+          <p class="card__sub">All fields are required.</p>
+        </header>
+
+        <form method="post" action="{% url 'orders:place_order' %}" class="order-form" data-order-form data-quote-url="{% url 'orders-api:quote' %}">
+          {% csrf_token %}
+
+          <fieldset class="group">
+            <legend class="group__title"><span class="step">1</span> Parties</legend>
+            <div class="group__body">
+            <div class="grid-2">
+              <div class="field">
+                <label for="merchant">Merchant</label>
+                <input id="merchant" name="merchant" required maxlength="80" autocomplete="organization" placeholder="e.g. Kigali Crafts" value="{{ form.merchant|default:'' }}">
+              </div>
+              <div class="field">
+                <label for="customer">Customer</label>
+                <input id="customer" name="customer" required maxlength="80" autocomplete="name" placeholder="e.g. Aline Uwase" value="{{ form.customer|default:'' }}">
+              </div>
+            </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend class="group__title"><span class="step">2</span> Delivery zone</legend>
+            <div class="group__body">
+            <div class="options options--3">
+              {% for key, z in zones.items %}
+              <label class="option">
+                <input type="radio" name="zone" value="{{ key }}" {% if form.zone == key or not form.zone and forloop.first %}checked{% endif %}>
+                <span class="option__body">
+                  <span class="option__title">{{ z.label }}</span>
+                  <span class="option__meta">from ${{ z.base|floatformat:2 }} · {{ z.days }} day{{ z.days|pluralize }}</span>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend class="group__title"><span class="step">3</span> Service &amp; weight</legend>
+            <div class="group__body">
+            <div class="options options--2">
+              {% for key, s in services.items %}
+              <label class="option">
+                <input type="radio" name="service" value="{{ key }}" {% if form.service == key or not form.service and forloop.first %}checked{% endif %}>
+                <span class="option__body">
+                  <span class="option__title">{{ s.label }}{% if s.days_saved %} <span class="tag tag--accent">Faster</span>{% endif %}</span>
+                  <span class="option__meta">{% if s.days_saved %}{{ s.days_saved }} day{{ s.days_saved|pluralize }} sooner · ×{{ s.multiplier }} rate{% else %}Best value · standard rate{% endif %}</span>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="field field--weight">
+              <label for="weight_kg">Parcel weight</label>
+              <div class="input-affix">
+                <input id="weight_kg" name="weight_kg" type="number" inputmode="decimal" step="0.1" min="0.1" max="50" required placeholder="0.0" value="{{ form.weight_kg|default:'' }}" aria-describedby="weight-hint">
+                <span class="input-affix__unit">kg</span>
+              </div>
+              <p class="hint" id="weight-hint">Up to 50 kg per parcel.</p>
+            </div>
+            </div>
+          </fieldset>
+
+          <div class="form-actions">
+            <p class="inline-quote" aria-hidden="true" data-inline-quote></p>
+            <button type="submit" class="btn btn--primary" data-submit>
+              <span class="btn__label">Book delivery</span>
+              <svg class="btn__icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <aside class="sidebar">
+        <section class="card quote" aria-labelledby="quote-title" data-quote data-state="idle">
+          <header class="card__head">
+            <h2 id="quote-title">Quote</h2>
+          </header>
+          <div class="quote__body" aria-live="polite">
+            <p class="quote__price"><span data-quote-price>—</span></p>
+            <dl class="quote__facts">
+              <div><dt>Delivery time</dt><dd data-quote-days>—</dd></div>
+              <div><dt>Estimated arrival</dt><dd data-quote-eta>—</dd></div>
+            </dl>
+            <p class="quote__note" data-quote-note>Enter a weight to see the price.</p>
+          </div>
+        </section>
+
+        <section class="card deploy" aria-labelledby="deploy-title">
+          <header class="card__head">
+            <h2 id="deploy-title">Deployment</h2>
+          </header>
+          <dl class="facts">
+            <div><dt>Built by</dt><dd class="facts__strong">{{ student_name }}</dd></div>
+            <div><dt>Lab</dt><dd>{{ lab_name }}</dd></div>
+            <div><dt>Release</dt><dd class="release">{{ version }}</dd></div>
+            <div><dt>Environment</dt><dd><span class="env-badge" data-env="{{ env }}">{{ env }}</span></dd></div>
+            <div><dt>Task</dt><dd class="mono">{{ runtime.task }}</dd></div>
+            <div><dt>Availability Zone</dt><dd class="mono">{{ runtime.zone }}</dd></div>
+          </dl>
+        </section>
+      </aside>
+    </div>
+
+    <section class="card card--flush" aria-labelledby="recent-title">
+      <header class="card__head card__head--row">
+        <div>
+          <h2 id="recent-title">Recent orders <span class="count">{{ rows|length }}</span></h2>
+          <p class="card__sub">Latest orders on this task. Each task keeps its own list, so refreshing may show a different one.</p>
+        </div>
+      </header>
+      {% if rows %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Order</th>
+              <th scope="col">Merchant</th>
+              <th scope="col">Customer</th>
+              <th scope="col">Service</th>
+              <th scope="col" class="num">Weight</th>
+              <th scope="col" class="num">Price</th>
+              <th scope="col">Arrives</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in rows %}{% with o=row.order %}
+            <tr{% if o.id == request.GET.placed %} class="is-new"{% endif %}>
+              <td class="mono">{{ o.id }}</td>
+              <td class="truncate" title="{{ o.merchant }}">{{ o.merchant }}</td>
+              <td class="truncate" title="{{ o.customer }}">{{ o.customer }}</td>
+              <td><span class="tag{% if o.service == 'express' %} tag--accent{% endif %}">{{ row.service_label }}</span> <span class="muted">{{ row.zone_label|lower }}</span></td>
+              <td class="num">{{ o.weight_kg|floatformat:"-1" }} kg</td>
+              <td class="num strong">${{ o.price|floatformat:2 }}</td>
+              <td><time datetime="{{ o.estimated_delivery }}">{{ row.eta|date:"D j M" }}</time></td>
+              <td><span class="status status--{{ o.status }}">{{ o.status|capfirst }}</span></td>
+            </tr>
+          {% endwith %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 16 24 8l16 8v16l-16 8-16-8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m8 16 16 8 16-8M24 24v16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <p class="empty__title">No orders on this task yet</p>
+        <p class="empty__text">Book a delivery above and it will appear here.</p>
+      </div>
+      {% endif %}
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© Onward Logistics</span>
+    <span class="muted">{{ lab_name }}</span>
+  </footer>
+</body>
+</html>
