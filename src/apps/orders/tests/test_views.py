@@ -19,6 +19,10 @@ class OrderPageTests(SimpleTestCase):
         self.assertIn("Delivering Order System Updates Safely for Onward Logistics", body)
         self.assertIn('class="release">test<', body)
 
+    def test_home_subtitle_names_delivery_services(self):
+        body = self.client.get("/").content.decode()
+        self.assertIn("with Standard or Express delivery", body)
+
     def test_place_order_via_form(self):
         response = self.client.post("/orders", VALID_FORM)
         self.assertEqual(response.status_code, 302)
