@@ -27,6 +27,10 @@ class OrderPageTests(SimpleTestCase):
         body = self.client.get("/").content.decode()
         self.assertIn('<h2 id="quote-title">Instant quote</h2>', body)
 
+    def test_form_hint_mentions_live_price(self):
+        body = self.client.get("/").content.decode()
+        self.assertIn("The price updates as you type.", body)
+
     def test_place_order_via_form(self):
         response = self.client.post("/orders", VALID_FORM)
         self.assertEqual(response.status_code, 302)
