@@ -60,7 +60,7 @@
       <section class="card" id="book" aria-labelledby="book-title">
         <header class="card__head">
           <h2 id="book-title">New shipment</h2>
-          <p class="card__sub">All fields are required.</p>
+          <p class="card__sub">All fields are required. The price updates as you type.</p>
         </header>
 
         <form method="post" action="{% url 'orders:place_order' %}" class="order-form" data-order-form data-quote-url="{% url 'orders-api:quote' %}">
