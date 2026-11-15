@@ -23,6 +23,10 @@ class OrderPageTests(SimpleTestCase):
         body = self.client.get("/").content.decode()
         self.assertIn("with an instant price quote", body)
 
+    def test_quote_card_title(self):
+        body = self.client.get("/").content.decode()
+        self.assertIn('<h2 id="quote-title">Instant quote</h2>', body)
+
     def test_place_order_via_form(self):
         response = self.client.post("/orders", VALID_FORM)
         self.assertEqual(response.status_code, 302)
