@@ -39,6 +39,10 @@ class OrderPageTests(SimpleTestCase):
         body = self.client.get("/").content.decode()
         self.assertIn("<h1>Book a new delivery</h1>", body)
 
+    def test_booking_card_title(self):
+        body = self.client.get("/").content.decode()
+        self.assertIn('<h2 id="book-title">Shipment details</h2>', body)
+
     def test_place_order_via_form(self):
         response = self.client.post("/orders", VALID_FORM)
         self.assertEqual(response.status_code, 302)
