@@ -15,6 +15,7 @@ class OrderPageTests(SimpleTestCase):
     def test_home_shows_name_lab_release_and_env(self):
         body = self.client.get("/").content.decode()
         self.assertIn("Onward Logistics", body)
+        self.assertIn("LAB REVIEW V2", body)
         self.assertIn("Test Student", body)
         self.assertIn("Delivering Order System Updates Safely for Onward Logistics", body)
         self.assertIn('class="release">test<', body)
